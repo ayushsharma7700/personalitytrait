@@ -4,7 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personality Rater</title>
-<link rel="stylesheet" href="style.css">
+<style>
+body { font-family: Arial, sans-serif; text-align:center; padding:20px; background: #f0f0f0; }
+h1 { color:#333; }
+input, select, button { padding:10px; margin:5px; border-radius:6px; }
+.hidden { display:none; }
+#traitsContainer { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:20px 0; }
+.trait-card { background:white; padding:10px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.2); }
+.yes-btn { background:green; color:white; margin-right:5px; cursor:pointer; }
+.no-btn { background:red; color:white; cursor:pointer; }
+.yes-btn.active, .no-btn.active { transform: scale(1.1); opacity:1; }
+.yes-btn:not(.active), .no-btn:not(.active) { opacity:0.5; }
+#ratingsList { background:white; padding:10px; border-radius:8px; margin-top:10px; text-align:left; max-width:500px; margin:auto; }
+.starsRating input { display:none; }
+.starsRating label { font-size:30px; color:gray; cursor:pointer; }
+.starsRating input:checked ~ label { color: gold; }
+</style>
 </head>
 <body>
 
@@ -50,106 +65,109 @@
 
 <!-- Firebase CDN -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, query, where } 
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // 🔥 Replace with your Firebase config
-   const firebaseConfig = {
-    apiKey: "AIzaSyCpFfZG2wTUidK06-bdaw9aqBQQBO4xMqc",
-    authDomain: "personality-rating.firebaseapp.com",
-    projectId: "personality-rating",
-    storageBucket: "personality-rating.firebasestorage.app",
-    messagingSenderId: "1056348504143",
-    appId: "1:1056348504143:web:e48f5b49bedfacb3b7ea3a",
-    measurementId: "G-VGN3DFRCQD"
-  };
+// 🔥 Replace with your Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCpFfZG2wTUidK06-bdaw9aqBQQBO4xMqc",
+  authDomain: "personality-rating.firebaseapp.com",
+  projectId: "personality-rating",
+  storageBucket: "personality-rating.firebasestorage.app",
+  messagingSenderId: "1056348504143",
+  appId: "1:1056348504143:web:e48f5b49bedfacb3b7ea3a",
+  measurementId: "G-VGN3DFRCQD"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-  // Traits
-  const traits = ["Kind","Helpful","Honest","Creative","Loyal","Caring","Hardworking","Generous","Friendly","Confident","Responsible","Respectful","Polite","Patient","Courageous","Selfish","Arrogant","Lazy","Jealous","Rude","Dishonest","Impulsive","Pessimistic","Aggressive","Insecure","Overconfident","Greedy","Forgiving","Optimistic","Calm"];
+// Traits
+const traits = ["Kind","Helpful","Honest","Creative","Loyal","Caring","Hardworking","Generous","Friendly","Confident","Responsible","Respectful","Polite","Patient","Courageous","Selfish","Arrogant","Lazy","Jealous","Rude","Dishonest","Impulsive","Pessimistic","Aggressive","Insecure","Overconfident","Greedy","Forgiving","Optimistic","Calm"];
 
-  let chosen = {};
-  let raterName = "";
+let chosen = {};
+let raterName = "";
 
-  const startBtn = document.getElementById("startBtn");
-  startBtn.addEventListener("click", ()=>{
-      const name = document.getElementById("raterName").value.trim();
-      if(!name){ alert("Enter your name"); return; }
-      raterName = name;
-      document.getElementById("loginSection").classList.add("hidden");
-      document.getElementById("ratingSection").classList.remove("hidden");
-      document.getElementById("welcomeText").innerText = `Welcome ${raterName}!`;
-      displayTraits();
-  });
+// Start Rating
+document.getElementById("startBtn").addEventListener("click", ()=>{
+    const name = document.getElementById("raterName").value.trim();
+    if(!name){ alert("Enter your name"); return; }
+    raterName = name;
+    document.getElementById("loginSection").classList.add("hidden");
+    document.getElementById("ratingSection").classList.remove("hidden");
+    document.getElementById("welcomeText").innerText = `Welcome ${raterName}!`;
+    displayTraits();
+});
 
-  function displayTraits(){
-      const container = document.getElementById("traitsContainer");
-      container.innerHTML="";
-      traits.forEach(trait=>{
-          const div = document.createElement("div");
-          div.className="trait-card";
-          div.innerHTML = `
-              <h4>${trait}</h4>
-              <button class="yes-btn" data-trait="${trait}" data-choice="Yes">Yes</button>
-              <button class="no-btn" data-trait="${trait}" data-choice="No">No</button>
-          `;
-          container.appendChild(div);
-      });
-  }
+// Display Traits
+function displayTraits(){
+    const container = document.getElementById("traitsContainer");
+    container.innerHTML="";
+    traits.forEach(trait=>{
+        const div = document.createElement("div");
+        div.className="trait-card";
+        div.innerHTML = `
+            <h4>${trait}</h4>
+            <button class="yes-btn" data-trait="${trait}" data-choice="Yes">Yes</button>
+            <button class="no-btn" data-trait="${trait}" data-choice="No">No</button>
+        `;
+        container.appendChild(div);
+    });
+}
 
-  document.addEventListener("click",(e)=>{
-      if(e.target.matches(".yes-btn,.no-btn")){
-          const trait = e.target.dataset.trait;
-          const choice = e.target.dataset.choice;
-          chosen[trait]=choice;
-          const parent = e.target.parentElement;
-          parent.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
-          e.target.classList.add("active");
-      }
-  });
+// Yes/No Button Handling
+document.addEventListener("click",(e)=>{
+    if(e.target.matches(".yes-btn,.no-btn")){
+        const trait = e.target.dataset.trait;
+        const choice = e.target.dataset.choice;
+        chosen[trait]=choice;
+        const parent = e.target.parentElement;
+        parent.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+        e.target.classList.add("active");
+    }
+});
 
-  document.getElementById("submitBtn").addEventListener("click", async ()=>{
-      const target = document.getElementById("targetSelect").value;
-      const rating = document.querySelector("input[name='rating']:checked");
-      if(!target){ alert("Select a person"); return; }
-      if(!rating){ alert("Select star rating"); return; }
-      const yesCount = Object.values(chosen).filter(v=>v==="Yes").length;
+// Submit Rating
+document.getElementById("submitBtn").addEventListener("click", async ()=>{
+    const target = document.getElementById("targetSelect").value;
+    const rating = document.querySelector("input[name='rating']:checked");
+    if(!target){ alert("Select a person"); return; }
+    if(!rating){ alert("Select star rating"); return; }
+    const yesCount = Object.values(chosen).filter(v=>v==="Yes").length;
 
-      const data = {
-          from: raterName,
-          to: target,
-          traits: chosen,
-          rating: rating.value,
-          yesCount,
-          date: new Date().toLocaleString()
-      };
+    const data = {
+        from: raterName,
+        to: target,
+        traits: chosen,
+        rating: rating.value,
+        yesCount,
+        date: new Date().toLocaleString()
+    };
 
-      try{
-          await addDoc(collection(db,"ratings"),data);
-          document.getElementById("result").innerHTML=`✅ You rated ${target} with ${yesCount} positive traits and ${rating.value} stars!`;
-          chosen={};
-      }catch(e){ alert("Error saving rating"); console.error(e); }
-  });
+    try{
+        await addDoc(collection(db,"ratings"),data);
+        document.getElementById("result").innerHTML=`✅ You rated ${target} with ${yesCount} positive traits and ${rating.value} stars!`;
+        chosen={};
+    }catch(e){ alert("Error saving rating"); console.error(e); }
+});
 
-  document.getElementById("viewBtn").addEventListener("click", async ()=>{
-      const listDiv = document.getElementById("ratingsList");
-      listDiv.classList.remove("hidden");
-      listDiv.innerHTML="<p>Loading...</p>";
+// View Who Rated
+document.getElementById("viewBtn").addEventListener("click", async ()=>{
+    const listDiv = document.getElementById("ratingsList");
+    listDiv.classList.remove("hidden");
+    listDiv.innerHTML="<p>Loading...</p>";
 
-      const q = query(collection(db,"ratings"),where("to","==",raterName));
-      const querySnapshot = await getDocs(q);
+    const q = query(collection(db,"ratings"),where("to","==",raterName));
+    const querySnapshot = await getDocs(q);
 
-      if(querySnapshot.empty){ listDiv.innerHTML="<p>No one has rated you yet 😔</p>"; return; }
+    if(querySnapshot.empty){ listDiv.innerHTML="<p>No one has rated you yet 😔</p>"; return; }
 
-      listDiv.innerHTML="<h3>Who Rated You:</h3>";
-      querySnapshot.forEach(doc=>{
-          const r = doc.data();
-          listDiv.innerHTML+=`<p>⭐ <b>${r.from}</b> rated ${r.rating} stars with ${r.yesCount} positive traits on ${r.date}</p>`;
-      });
-  });
+    listDiv.innerHTML="<h3>Who Rated You:</h3>";
+    querySnapshot.forEach(doc=>{
+        const r = doc.data();
+        listDiv.innerHTML+=`<p>⭐ <b>${r.from}</b> rated ${r.rating} stars with ${r.yesCount} positive traits on ${r.date}</p>`;
+    });
+});
 </script>
 
 </body>
